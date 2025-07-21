@@ -1,0 +1,28 @@
+# Julia project ignores
+/.julia/
+/.vscode/
+/.idea/
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Compiled source
+*.o
+*.so
+*.dylib
+*.dll
+
+# Jupyter and Pluto notebooks checkpoints
+.ipynb_checkpoints/
+
+# Julia package artifacts
+artifacts/
+
+# Manifest and environment lock files (optional, keep if you want reproducibility)
+# Manifest.toml
+# JuliaProject.toml
+
+# Misc
+*.log
+*.tmp 
