@@ -29,7 +29,7 @@ using DataStructures
     # 3. Test percolation run
     p_crit = 0.5927
     result = run_site_percolation(lat, p_crit)
-    @test typeof(result) == PercResult
+    @test typeof(result) == SitePercResult
     @test length(result.clusters.parents) == N * N
     num_occupied = sum(result.occupied_sites)
     final_clusters_small = num_groups(result.clusters)

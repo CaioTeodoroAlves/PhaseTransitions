@@ -1,32 +1,32 @@
-using PhaseTransitions
-using Plots
+using PhaseTransitions.Lattices
+using PhaseTransitions.Percolation
 using Random
 
-println("=== Spin Dynamics Video Demo ===")
+println("=== Percolation Refactor Debug Test ===")
 
-N = 500
-steps = 100
-seed = 42
+N = 10
+p = 0.5
 boundary = :periodic
+seed = 42
+Random.seed!(seed)
 
-# Choose dynamics rule: MajorityDynamics or IsingDynamics(beta, J)
-dynamics_rule = IsingDynamics(0.44, -1)
+# Test 2D square nearest neighbor lattice
+lat = SquareNearestNeighborLattice((N, N), boundary=boundary)
 
-# Initialize random configuration appropriate for the rule
-debug_seed = seed  # for reproducibility
-Random.seed!(debug_seed)
-config = random_config(dynamics_rule, N)
-lat = SquareLattice(N, boundary=boundary)
-update_fraction = 0.1
+# Site percolation
+site_result = run_site_percolation(lat, p)
+println("Site percolation clusters: ", site_result.clusters)
+println("Occupied sites (sum): ", count(site_result.occupied_sites))
 
-# Prepare animation
-anim = @animate for t in 1:steps
-    step!(config, lat, dynamics_rule)
-    # For visualization, map spins to Bool (e.g., up spins as true)
-    perc_result = percolation_from_config(lat, config isa BitMatrix ? config : config .== 1)
-    p = plot_clusters(perc_result, color_scheme=:size_ordered, palette=:viridis)
-    plot!(p, title="Step $t", legend=false)
-end
+# Bond percolation
+bond_result = run_bond_percolation(lat, p)
+println("Bond percolation clusters: ", bond_result.clusters)
+println("Occupied bonds (sum): ", count(bond_result.occupied_edges))
 
-gif(anim, "dynamics_demo.gif", fps=3)
-println("\nDemo completed! Animation saved as 'dynamics_demo.gif'")
+# Test on 3D cubic lattice
+lat3d = CubicNearestNeighborLattice((N, N, N), boundary=boundary)
+site_result3d = run_site_percolation(lat3d, p)
+println("3D Site percolation clusters: ", site_result3d.clusters)
+println("3D Occupied sites (sum): ", count(site_result3d.occupied_sites))
+
+println("\nDebug test completed!")

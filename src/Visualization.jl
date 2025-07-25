@@ -13,7 +13,7 @@ export plot_clusters, save_cluster_animation
 const MAX_PALETTE_SIZE = 1000
 const _fixed_palette_cache = Dict{Any, Vector{RGB{Float64}}}()
 
-function plot_clusters(result::PercResult; 
+function plot_clusters(result::SitePercResult; 
                        color_scheme=:random, 
                        palette=nothing,
                        saturation=0.85, 
@@ -28,7 +28,6 @@ function plot_clusters(result::PercResult;
     lat = result.lattice
     clusters = result.clusters
     occupied = result.occupied_sites
-    N = lat.N
     root_colors = Dict{Int, RGB{Float64}}()
     
     # Prepare palette if provided
@@ -38,17 +37,22 @@ function plot_clusters(result::PercResult;
     # Set a fixed random seed for consistent coloring if requested
     rng = color_seed === nothing ? Random.GLOBAL_RNG : MersenneTwister(color_seed)
 
+    dims = size(lat)
+    if length(dims) != 2
+        error("plot_clusters currently only supports 2D lattices.")
+    end
+
     if color_scheme == :size_ordered
         # 1. Collect all cluster roots and their member sites
         cluster_sites = Dict{Int, Vector{Tuple{Int,Int}}}()
-        for j in 1:N, i in 1:N
-            if occupied[i,j]
-                p_int = point_to_int(lat, (i,j))
+        for (i, j) in Iterators.product(1:dims[1], 1:dims[2])
+            if occupied[i, j]
+                p_int = point_to_int(lat, (i, j))
                 root = find_root!(clusters, p_int)
                 if !haskey(cluster_sites, root)
                     cluster_sites[root] = Vector{Tuple{Int,Int}}()
                 end
-                push!(cluster_sites[root], (i,j))
+                push!(cluster_sites[root], (i, j))
             end
         end
         # 2. Sort clusters by size (desc), then by top-left-most site
@@ -92,9 +96,9 @@ function plot_clusters(result::PercResult;
         end
     else
         # Assign colors to cluster roots (original logic)
-        for j in 1:N, i in 1:N
-            if occupied[i,j]
-                p_int = point_to_int(lat, (i,j))
+        for (i, j) in Iterators.product(1:dims[1], 1:dims[2])
+            if occupied[i, j]
+                p_int = point_to_int(lat, (i, j))
                 root = find_root!(clusters, p_int)
                 if !haskey(root_colors, root)
                     h = hash(root)
@@ -113,14 +117,13 @@ function plot_clusters(result::PercResult;
         end
     end
 
-    # Create an image matrix with the cluster colors
-    img = fill(unoccupied_color, (N, N)) # User-specified background
-    for j in 1:N, i in 1:N
-        if occupied[i,j]
-            p_int = point_to_int(lat, (i,j))
+    img = fill(unoccupied_color, dims) # User-specified background
+    for (i, j) in Iterators.product(1:dims[1], 1:dims[2])
+        if occupied[i, j]
+            p_int = point_to_int(lat, (i, j))
             root = find_root!(clusters, p_int)
             if haskey(root_colors, root)
-                img[i,j] = root_colors[root]
+                img[i, j] = root_colors[root]
             end
         end
     end
@@ -130,7 +133,7 @@ function plot_clusters(result::PercResult;
     return p
 end
 
-function save_cluster_animation!(config, lat::SquareLattice, rule, steps::Int; filename="cluster_animation.gif", interval=1, palette=nothing, color_scheme=:random, saturation=0.85, value=0.95, unoccupied_color=RGB(1,1,1))
+function save_cluster_animation!(config, lat::AbstractLattice, rule, steps::Int; filename="cluster_animation.gif", interval=1, palette=nothing, color_scheme=:random, saturation=0.85, value=0.95, unoccupied_color=RGB(1,1,1))
     # config: BitMatrix (Boolean) or Matrix{Int8} (Ising)
     # rule: any dynamics rule with step! defined
     # steps: total number of frames

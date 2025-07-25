@@ -3,69 +3,87 @@ module Percolation
 using ..Lattices
 using DataStructures
 
-export PercResult, run_site_percolation, percolation_from_config
+export SitePercResult, BondPercResult, run_site_percolation, run_bond_percolation, percolation_from_site_config, percolation_from_bond_config
 
-struct PercResult
-    lattice::SquareLattice
-    occupied_sites::BitMatrix
+struct SitePercResult{L<:Lattices.AbstractLattice, D}
+    lattice::L
+    occupied_sites::BitArray{D}
     clusters::IntDisjointSets
 end
 
-function run_site_percolation(lat::SquareLattice, p::Float64)
-    occupied = rand(size(lat)...) .< p
-    clusters = IntDisjointSets(lat.N * lat.N)
-    N = lat.N
+struct BondPercResult{L<:Lattices.AbstractLattice, D}
+    lattice::L
+    occupied_edges::BitVector
+    edge_list::Vector{Lattices.LatticeEdge{D}}
+    clusters::IntDisjointSets
+end
 
-    for j in 1:N, i in 1:N # Iterate through each site
-        if !occupied[i, j]
+function run_site_percolation(lat::Lattices.RegularLattice{D}, p::Float64) where D
+    occ = rand(size(lat)...) .< p
+    occ_bits = BitArray(occ)
+    n_sites = prod(size(lat))
+    clusters = IntDisjointSets(n_sites)
+    for site in sites(lat)
+        if !occ_bits[site...]
             continue
         end
-        site_int = point_to_int(lat, (i, j))
-        for (ni, nj) in neighbors(lat, (i, j))
-            if occupied[ni, nj]
-                neighbor_int = point_to_int(lat, (ni, nj))
+        site_int = point_to_int(lat, Tuple(site))
+        for neighbor in neighbors(lat, Tuple(site))
+            if occ_bits[neighbor...]
+                neighbor_int = point_to_int(lat, neighbor)
                 union!(clusters, site_int, neighbor_int)
             end
         end
     end
-    return PercResult(lat, occupied, clusters)
+    return SitePercResult(lat, occ_bits, clusters)
 end
 
-"""
-    percolation_from_config(lat::SquareLattice, config::BitMatrix)
-
-Create a PercResult from a Boolean configuration, treating true as occupied sites.
-"""
-function percolation_from_config(lat::SquareLattice, config::BitMatrix)
-    clusters = IntDisjointSets(lat.N * lat.N)
-    N = lat.N
-    for j in 1:N, i in 1:N
-        if !config[i, j]
+function run_bond_percolation(lat::Lattices.RegularLattice{D}, p::Float64) where D
+    edge_list = edges(lat)
+    n_edges = length(edge_list)
+    occ = rand(n_edges) .< p
+    clusters = IntDisjointSets(prod(size(lat)))
+    for (idx, edge) in enumerate(edge_list)
+        if !occ[idx]
             continue
         end
-        site_int = point_to_int(lat, (i, j))
-        for (ni, nj) in neighbors(lat, (i, j))
-            if !(1 <= ni <= N && 1 <= nj <= N)
-                @warn "Out-of-bounds neighbor index: ($ni, $nj) for site ($i, $j) with boundary $(lat.boundary)"
-                continue
-            end
-            if config[ni, nj]
-                neighbor_int = point_to_int(lat, (ni, nj))
+        site1_int = point_to_int(lat, edge.site1)
+        site2_int = point_to_int(lat, edge.site2)
+        union!(clusters, site1_int, site2_int)
+    end
+    return BondPercResult{typeof(lat), D}(lat, BitVector(occ), edge_list, clusters)
+end
+
+function percolation_from_site_config(lat::Lattices.RegularLattice{D}, config::BitArray{D}) where D
+    n_sites = prod(size(lat))
+    clusters = IntDisjointSets(n_sites)
+    for site in sites(lat)
+        if !config[site...]
+            continue
+        end
+        site_int = point_to_int(lat, Tuple(site))
+        for neighbor in neighbors(lat, Tuple(site))
+            if config[neighbor...]
+                neighbor_int = point_to_int(lat, neighbor)
                 union!(clusters, site_int, neighbor_int)
             end
         end
     end
-    return PercResult(lat, config, clusters)
+    return SitePercResult(lat, config, clusters)
 end
 
-"""
-    percolation_from_config(lat::SquareLattice, spins::Matrix{Int8})
-
-Create a PercResult from an Ising spin configuration, treating +1 as occupied sites.
-"""
-function percolation_from_config(lat::SquareLattice, spins::Matrix{Int8})
-    occupied = BitMatrix(spins .== 1)
-    return percolation_from_config(lat, occupied)
+function percolation_from_bond_config(lat::Lattices.RegularLattice{D}, bond_config::BitVector) where D
+    edge_list = edges(lat)
+    clusters = IntDisjointSets(prod(size(lat)))
+    for (idx, edge) in enumerate(edge_list)
+        if !bond_config[idx]
+            continue
+        end
+        site1_int = point_to_int(lat, edge.site1)
+        site2_int = point_to_int(lat, edge.site2)
+        union!(clusters, site1_int, site2_int)
+    end
+    return BondPercResult{typeof(lat), D}(lat, bond_config, edge_list, clusters)
 end
 
 end # module 

@@ -37,24 +37,24 @@ end
 
 Apply one step of the given dynamics rule to the configuration, updating a fraction of sites at random.
 """
-function step!(config::BitMatrix, lattice::SquareLattice, rule::RandomFlip; update_fraction=1.0)
-    N = lattice.N
-    num_updates = round(Int, update_fraction * N * N)
+function step!(config::BitMatrix, lattice::RegularLattice{2}, rule::RandomFlip; update_fraction=1.0)
+    dims = size(lattice)
+    num_updates = round(Int, update_fraction * prod(dims))
     for _ in 1:num_updates
-        i = rand(1:N)
-        j = rand(1:N)
+        i = rand(1:dims[1])
+        j = rand(1:dims[2])
         if rand() < rule.flip_probability
             config[i, j] = !config[i, j]
         end
     end
 end
 
-function step!(config::BitMatrix, lattice::SquareLattice, rule::MajorityDynamics; update_fraction=1.0)
-    N = lattice.N
-    num_updates = round(Int, update_fraction * N * N)
+function step!(config::BitMatrix, lattice::RegularLattice{2}, rule::MajorityDynamics; update_fraction=1.0)
+    dims = size(lattice)
+    num_updates = round(Int, update_fraction * prod(dims))
     for _ in 1:num_updates
-        i = rand(1:N)
-        j = rand(1:N)
+        i = rand(1:dims[1])
+        j = rand(1:dims[2])
         neighs = neighbors(lattice, (i, j))
         if !isempty(neighs)
             occupied_neighbors = sum(config[ni, nj] for (ni, nj) in neighs)
@@ -70,12 +70,12 @@ function step!(config::BitMatrix, lattice::SquareLattice, rule::MajorityDynamics
     end
 end
 
-function step!(config::BitMatrix, lattice::SquareLattice, rule::HardcoreModel; update_fraction=1.0)
-    N = lattice.N
-    num_updates = round(Int, update_fraction * N * N)
+function step!(config::BitMatrix, lattice::RegularLattice{2}, rule::HardcoreModel; update_fraction=1.0)
+    dims = size(lattice)
+    num_updates = round(Int, update_fraction * prod(dims))
     for _ in 1:num_updates
-        i = rand(1:N)
-        j = rand(1:N)
+        i = rand(1:dims[1])
+        j = rand(1:dims[2])
         neighs = neighbors(lattice, (i, j))
         if !isempty(neighs)
             has_occupied_neighbor = any(config[ni, nj] for (ni, nj) in neighs)
@@ -86,12 +86,12 @@ function step!(config::BitMatrix, lattice::SquareLattice, rule::HardcoreModel; u
     end
 end
 
-function step!(spins::Matrix{Int8}, lattice::SquareLattice, rule::IsingDynamics; update_fraction=1.0)
-    N = lattice.N
-    num_updates = round(Int, update_fraction * N * N)
+function step!(spins::Matrix{Int8}, lattice::RegularLattice{2}, rule::IsingDynamics; update_fraction=1.0)
+    dims = size(lattice)
+    num_updates = round(Int, update_fraction * prod(dims))
     for _ in 1:num_updates
-        i = rand(1:N)
-        j = rand(1:N)
+        i = rand(1:dims[1])
+        j = rand(1:dims[2])
         s = spins[i, j]
         neighs = neighbors(lattice, (i, j))
         sum_neigh = sum(spins[ni, nj] for (ni, nj) in neighs)
@@ -102,12 +102,12 @@ function step!(spins::Matrix{Int8}, lattice::SquareLattice, rule::IsingDynamics;
     end
 end
 
-function step!(config::BitMatrix, lattice::SquareLattice, rule::IndependentResample; update_fraction=1.0)
-    N = lattice.N
-    num_updates = round(Int, update_fraction * N * N)
+function step!(config::BitMatrix, lattice::RegularLattice{2}, rule::IndependentResample; update_fraction=1.0)
+    dims = size(lattice)
+    num_updates = round(Int, update_fraction * prod(dims))
     for _ in 1:num_updates
-        i = rand(1:N)
-        j = rand(1:N)
+        i = rand(1:dims[1])
+        j = rand(1:dims[2])
         config[i, j] = rand() < rule.p
     end
 end
@@ -124,24 +124,24 @@ function run_dynamics!(config, lattice, rule, steps; update_fraction=1.0)
 end
 
 # Helper to generate a random configuration for a given rule and size
-function random_config(rule::MajorityDynamics, N)
-    BitMatrix(rand(Bool, N, N))
+function random_config(rule::MajorityDynamics, lattice::RegularLattice{2})
+    BitMatrix(rand(Bool, size(lattice)...))
 end
 
-function random_config(rule::RandomFlip, N)
-    BitMatrix(rand(Bool, N, N))
+function random_config(rule::RandomFlip, lattice::RegularLattice{2})
+    BitMatrix(rand(Bool, size(lattice)...))
 end
 
-function random_config(rule::HardcoreModel, N)
-    BitMatrix(rand(Bool, N, N))
+function random_config(rule::HardcoreModel, lattice::RegularLattice{2})
+    BitMatrix(rand(Bool, size(lattice)...))
 end
 
-function random_config(rule::IndependentResample, N)
-    BitMatrix(rand(Bool, N, N))
+function random_config(rule::IndependentResample, lattice::RegularLattice{2})
+    BitMatrix(rand(Bool, size(lattice)...))
 end
 
-function random_config(rule::IsingDynamics, N)
-    Int8.(rand([-1, 1], N, N))
+function random_config(rule::IsingDynamics, lattice::RegularLattice{2})
+    Int8.(rand([-1, 1], size(lattice)...))
 end
 
 end # module 
