@@ -32,116 +32,178 @@ struct IndependentResample <: DynamicsRule
     p::Float64
 end
 
+# Generic configuration type that works with any D-dimensional lattice
+struct LatticeConfig{D}
+    values::Dict{Any, Union{Bool, Int8}}
+    lattice::RegularLattice{D}
+end
+
+# Constructor for LatticeConfig
+function LatticeConfig(lattice::RegularLattice{D}, initial_values::Dict{Any, Union{Bool, Int8}}) where D
+    LatticeConfig{D}(initial_values, lattice)
+end
+
+# Alternative constructor with different argument order
+function LatticeConfig(initial_values::Dict{Any, Union{Bool, Int8}}, lattice::RegularLattice{D}) where D
+    LatticeConfig{D}(initial_values, lattice)
+end
+
+# Helper function to get value at a site
+function get_value(config::LatticeConfig{D}, site) where D
+    return get(config.values, site, false)  # Default to false for missing sites
+end
+
+# Helper function to set value at a site
+function set_value!(config::LatticeConfig{D}, site, value::Union{Bool, Int8}) where D
+    config.values[site] = value
+end
+
+# Helper function to get all sites in the lattice
+function all_sites(config::LatticeConfig{D}) where D
+    return sites(config.lattice)
+end
+
+# Helper function to get random site
+function random_site(config::LatticeConfig{D}) where D
+    sites_list = collect(all_sites(config))
+    return sites_list[rand(1:length(sites_list))]
+end
+
 """
     step!(config, lattice, rule, update_fraction=1.0)
 
 Apply one step of the given dynamics rule to the configuration, updating a fraction of sites at random.
 """
-function step!(config::BitMatrix, lattice::RegularLattice{2}, rule::RandomFlip; update_fraction=1.0)
-    dims = size(lattice)
-    num_updates = round(Int, update_fraction * prod(dims))
+function step!(config::LatticeConfig{D}, rule::RandomFlip; update_fraction=1.0) where D
+    sites_list = collect(all_sites(config))
+    num_updates = round(Int, update_fraction * length(sites_list))
     for _ in 1:num_updates
-        i = rand(1:dims[1])
-        j = rand(1:dims[2])
+        site = random_site(config)
         if rand() < rule.flip_probability
-            config[i, j] = !config[i, j]
+            current_value = get_value(config, site)
+            set_value!(config, site, !current_value)
         end
     end
 end
 
-function step!(config::BitMatrix, lattice::RegularLattice{2}, rule::MajorityDynamics; update_fraction=1.0)
-    dims = size(lattice)
-    num_updates = round(Int, update_fraction * prod(dims))
+function step!(config::LatticeConfig{D}, rule::MajorityDynamics; update_fraction=1.0) where D
+    sites_list = collect(all_sites(config))
+    num_updates = round(Int, update_fraction * length(sites_list))
     for _ in 1:num_updates
-        i = rand(1:dims[1])
-        j = rand(1:dims[2])
-        neighs = neighbors(lattice, (i, j))
+        site = random_site(config)
+        neighs = neighbors(config.lattice, site)
         if !isempty(neighs)
-            occupied_neighbors = sum(config[ni, nj] for (ni, nj) in neighs)
+            occupied_neighbors = sum(get_value(config, neighbor) for neighbor in neighs)
             total_neighbors = length(neighs)
             # Update based on majority
             if occupied_neighbors > total_neighbors / 2
-                config[i, j] = true
+                set_value!(config, site, true)
             elseif occupied_neighbors < total_neighbors / 2
-                config[i, j] = false
+                set_value!(config, site, false)
             end
             # If exactly half, keep current state
         end
     end
 end
 
-function step!(config::BitMatrix, lattice::RegularLattice{2}, rule::HardcoreModel; update_fraction=1.0)
-    dims = size(lattice)
-    num_updates = round(Int, update_fraction * prod(dims))
+function step!(config::LatticeConfig{D}, rule::HardcoreModel; update_fraction=1.0) where D
+    sites_list = collect(all_sites(config))
+    num_updates = round(Int, update_fraction * length(sites_list))
     for _ in 1:num_updates
-        i = rand(1:dims[1])
-        j = rand(1:dims[2])
-        neighs = neighbors(lattice, (i, j))
+        site = random_site(config)
+        neighs = neighbors(config.lattice, site)
         if !isempty(neighs)
-            has_occupied_neighbor = any(config[ni, nj] for (ni, nj) in neighs)
-            if config[i, j] && has_occupied_neighbor
-                config[i, j] = false
+            has_occupied_neighbor = any(get_value(config, neighbor) for neighbor in neighs)
+            if get_value(config, site) && has_occupied_neighbor
+                set_value!(config, site, false)
             end
         end
     end
 end
 
-function step!(spins::Matrix{Int8}, lattice::RegularLattice{2}, rule::IsingDynamics; update_fraction=1.0)
-    dims = size(lattice)
-    num_updates = round(Int, update_fraction * prod(dims))
+function step!(config::LatticeConfig{D}, rule::IsingDynamics; update_fraction=1.0) where D
+    sites_list = collect(all_sites(config))
+    num_updates = round(Int, update_fraction * length(sites_list))
     for _ in 1:num_updates
-        i = rand(1:dims[1])
-        j = rand(1:dims[2])
-        s = spins[i, j]
-        neighs = neighbors(lattice, (i, j))
-        sum_neigh = sum(spins[ni, nj] for (ni, nj) in neighs)
+        site = random_site(config)
+        s = get_value(config, site)
+        neighs = neighbors(config.lattice, site)
+        sum_neigh = sum(get_value(config, neighbor) for neighbor in neighs)
         dE = 2 * rule.J * s * sum_neigh
         if dE <= 0 || rand() < exp(-rule.beta * dE)
-            spins[i, j] = -s
+            set_value!(config, site, Int8(-s))
         end
     end
 end
 
-function step!(config::BitMatrix, lattice::RegularLattice{2}, rule::IndependentResample; update_fraction=1.0)
-    dims = size(lattice)
-    num_updates = round(Int, update_fraction * prod(dims))
+function step!(config::LatticeConfig{D}, rule::IndependentResample; update_fraction=1.0) where D
+    sites_list = collect(all_sites(config))
+    num_updates = round(Int, update_fraction * length(sites_list))
     for _ in 1:num_updates
-        i = rand(1:dims[1])
-        j = rand(1:dims[2])
-        config[i, j] = rand() < rule.p
+        site = random_site(config)
+        set_value!(config, site, rand() < rule.p)
     end
 end
 
 """
-    run_dynamics!(config, lattice, rule, steps; update_fraction=1.0)
+    run_dynamics!(config, rule, steps; update_fraction=1.0)
 
 Run the dynamics for a specified number of steps, updating a fraction of sites at random per step.
 """
-function run_dynamics!(config, lattice, rule, steps; update_fraction=1.0)
+function run_dynamics!(config::LatticeConfig, rule, steps; update_fraction=1.0)
     for _ in 1:steps
-        step!(config, lattice, rule; update_fraction=update_fraction)
+        step!(config, rule; update_fraction=update_fraction)
     end
 end
 
-# Helper to generate a random configuration for a given rule and size
-function random_config(rule::MajorityDynamics, lattice::RegularLattice{2})
-    BitMatrix(rand(Bool, size(lattice)...))
+# Helper to generate a random configuration for a given rule and lattice
+function random_config(rule::MajorityDynamics, lattice::RegularLattice{D}) where D
+    values = Dict{Any, Union{Bool, Int8}}()
+    for site in sites(lattice)
+        values[site] = rand(Bool)
+    end
+    return LatticeConfig(values, lattice)
 end
 
-function random_config(rule::RandomFlip, lattice::RegularLattice{2})
-    BitMatrix(rand(Bool, size(lattice)...))
+function random_config(rule::RandomFlip, lattice::RegularLattice{D}) where D
+    values = Dict{Any, Union{Bool, Int8}}()
+    for site in sites(lattice)
+        values[site] = rand(Bool)
+    end
+    return LatticeConfig(values, lattice)
 end
 
-function random_config(rule::HardcoreModel, lattice::RegularLattice{2})
-    BitMatrix(rand(Bool, size(lattice)...))
+function random_config(rule::HardcoreModel, lattice::RegularLattice{D}) where D
+    values = Dict{Any, Union{Bool, Int8}}()
+    for site in sites(lattice)
+        values[site] = rand(Bool)
+    end
+    return LatticeConfig(values, lattice)
 end
 
-function random_config(rule::IndependentResample, lattice::RegularLattice{2})
-    BitMatrix(rand(Bool, size(lattice)...))
+function random_config(rule::IndependentResample, lattice::RegularLattice{D}) where D
+    values = Dict{Any, Union{Bool, Int8}}()
+    for site in sites(lattice)
+        values[site] = rand() < rule.p
+    end
+    return LatticeConfig(values, lattice)
 end
 
-function random_config(rule::IsingDynamics, lattice::RegularLattice{2})
-    Int8.(rand([-1, 1], size(lattice)...))
+function random_config(rule::IsingDynamics, lattice::RegularLattice{D}) where D
+    values = Dict{Any, Union{Bool, Int8}}()
+    for site in sites(lattice)
+        values[site] = Int8(rand([-1, 1]))
+    end
+    return LatticeConfig(values, lattice)
+end
+
+# Backward compatibility: functions that accept lattice as separate argument
+function step!(config::LatticeConfig{D}, lattice::RegularLattice{D}, rule; update_fraction=1.0) where D
+    step!(config, rule; update_fraction=update_fraction)
+end
+
+function run_dynamics!(config::LatticeConfig{D}, lattice::RegularLattice{D}, rule, steps; update_fraction=1.0) where D
+    run_dynamics!(config, rule, steps; update_fraction=update_fraction)
 end
 
 end # module 

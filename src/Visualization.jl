@@ -143,9 +143,9 @@ function save_cluster_animation!(config, lat::AbstractLattice, rule, steps::Int;
     for t in 1:steps
         # Extract clusters for current config
         if typeof(config) <: BitMatrix
-            perc = percolation_from_config(lat, config)
+            perc = percolation_from_site_config(lat, config)
         elseif typeof(config) <: Matrix{Int8}
-            perc = percolation_from_config(lat, config)
+            perc = percolation_from_site_config(lat, config)
         else
             error("Unsupported config type: $(typeof(config))")
         end

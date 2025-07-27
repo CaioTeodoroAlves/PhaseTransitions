@@ -17,5 +17,6 @@ export plot_clusters
 include("Dynamics.jl")
 using .Dynamics
 export DynamicsRule, RandomFlip, MajorityDynamics, HardcoreModel, IndependentResample, IsingDynamics, step!, run_dynamics!, random_config
+export LatticeConfig, get_value, set_value!, all_sites, random_site
 
 end # module 

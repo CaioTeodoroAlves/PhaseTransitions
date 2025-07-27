@@ -72,6 +72,17 @@ function percolation_from_site_config(lat::Lattices.RegularLattice{D}, config::B
     return SitePercResult(lat, config, clusters)
 end
 
+function percolation_from_site_config(lat::Lattices.RegularLattice{D}, config::Dict) where D
+    # Convert Dict-based config to BitArray
+    occ_bits = falses(size(lat)...)
+    for site in sites(lat)
+        if haskey(config, site) && config[site]
+            occ_bits[site...] = true
+        end
+    end
+    return percolation_from_site_config(lat, occ_bits)
+end
+
 function percolation_from_bond_config(lat::Lattices.RegularLattice{D}, bond_config::BitVector) where D
     edge_list = edges(lat)
     clusters = IntDisjointSets(prod(size(lat)))
