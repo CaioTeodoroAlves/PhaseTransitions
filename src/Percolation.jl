@@ -76,9 +76,16 @@ function percolation_from_site_config(lat::Lattices.RegularLattice{D}, config::D
     # Convert Dict-based config to BitArray
     occ_bits = falses(size(lat)...)
     for site in sites(lat)
-        if haskey(config, site) && config[site]
-            occ_bits[site...] = true
+        # Handle both Boolean and Integer values
+        if haskey(config, site)
+            value = config[site]
+            # Treat true/positive values as occupied, false/negative as unoccupied
+            if value == true || value == 1 || value == Int8(1)
+                occ_bits[site...] = true
+            end
+            # Sites with false, -1, Int8(-1), or missing are treated as unoccupied
         end
+        # Sites not in config are treated as unoccupied (false)
     end
     return percolation_from_site_config(lat, occ_bits)
 end
