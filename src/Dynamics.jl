@@ -25,6 +25,12 @@ struct HardcoreModel <: DynamicsRule end
 struct IsingDynamics <: DynamicsRule
     beta::Float64  # Inverse temperature
     J::Int         # Coupling: +1 (ferro), -1 (antiferro)
+    h::Float64     # External field (default: 0)
+end
+
+# Constructor with default external field
+function IsingDynamics(beta::Float64, J::Int; h::Float64=0.0)
+    IsingDynamics(beta, J, h)
 end
 
 # Independent resample rule (like site percolation)
@@ -129,7 +135,8 @@ function step!(config::LatticeConfig{D}, rule::IsingDynamics; update_fraction=1.
         s = get_value(config, site)
         neighs = neighbors(config.lattice, site)
         sum_neigh = sum(get_value(config, neighbor) for neighbor in neighs)
-        dE = 2 * rule.J * s * sum_neigh
+        # Energy change includes both coupling and external field terms
+        dE = 2 * rule.J * s * sum_neigh + 2 * rule.h * s
         if dE <= 0 || rand() < exp(-rule.beta * dE)
             set_value!(config, site, Int8(-s))
         end
