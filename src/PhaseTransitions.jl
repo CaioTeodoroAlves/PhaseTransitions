@@ -4,7 +4,6 @@ include("Lattices.jl")
 using .Lattices
 export AbstractLattice, RegularLattice, LatticeEdge, sites, neighbors, edges, point_to_int, int_to_point
 export SquareLattice, TriangularLattice, CubicLattice, NearestNeighborLattice
-export SquareNearestNeighborLattice, CubicNearestNeighborLattice
 
 include("Percolation.jl")
 using .Percolation

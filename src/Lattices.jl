@@ -8,7 +8,6 @@ export sites, neighbors, edges, point_to_int, int_to_point
 export SQUARE_NEIGHBORHOOD, TRIANGULAR_NEIGHBORHOOD, SquareLattice, TriangularLattice
 export CubicLattice
 export NearestNeighborLattice
-export SquareNearestNeighborLattice, CubicNearestNeighborLattice
 
 # Abstract type for all lattice types
 abstract type AbstractLattice end
@@ -167,24 +166,6 @@ function NearestNeighborLattice(size::NTuple{D,Int}; boundary::Symbol=:free) whe
         push!(neighborhood, vminus)
     end
     RegularLattice(size, neighborhood; boundary=boundary)
-end
-
-"""
-    SquareNearestNeighborLattice(size::Tuple{Int,Int}; boundary=:free)
-
-Construct a 2D square nearest-neighbor lattice (alias for NearestNeighborLattice).
-"""
-function SquareNearestNeighborLattice(size::Tuple{Int,Int}; boundary::Symbol=:free)
-    NearestNeighborLattice(size; boundary=boundary)
-end
-
-"""
-    CubicNearestNeighborLattice(size::Tuple{Int,Int,Int}; boundary=:free)
-
-Construct a 3D cubic nearest-neighbor lattice (alias for NearestNeighborLattice).
-"""
-function CubicNearestNeighborLattice(size::Tuple{Int,Int,Int}; boundary::Symbol=:free)
-    NearestNeighborLattice(size; boundary=boundary)
 end
 
 end # module 
